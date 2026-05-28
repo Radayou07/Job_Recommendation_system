@@ -71,17 +71,24 @@ function JobCard({ job, variant = 'recommend' }) {
       <div className="p-6 flex flex-col flex-grow">
         {/* Header row */}
         <div className="flex items-start justify-between mb-4">
-          {variant === 'returnee' ? (
-            <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full tracking-widest uppercase border border-emerald-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-              Verified Entry
-            </span>
-          ) : (
-            <span className="inline-flex items-center bg-blue-50 text-blue-600 text-[10px] font-bold px-2.5 py-1 rounded-full tracking-widest uppercase border border-blue-100">
+          <div className="flex flex-col gap-2">
+            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full tracking-widest uppercase border ${
+              variant === 'returnee' 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                : 'bg-blue-50 text-blue-600 border-blue-100'
+            }`}>
+              {variant === 'returnee' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />}
               {Math.round(job.score * 100)}% Match
             </span>
-          )}
-          <span className="text-[11px] font-semibold text-slate-400">{job.distance}</span>
+          </div>
+          
+          <div className="flex flex-col items-end gap-1.5">
+            {job.job_type && job.job_type !== 'nan' && (
+              <span className="bg-slate-50 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-100 uppercase tracking-wider">
+                {job.job_type}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Title & Company */}
@@ -92,6 +99,28 @@ function JobCard({ job, variant = 'recommend' }) {
           {job.job_title}
         </h3>
         <p className="text-sm text-slate-500 font-medium mb-4">{job.company_name}</p>
+
+        {/* Skills Tags */}
+        {job.skills && job.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {job.skills.slice(0, 4).map((skill, i) => (
+              <span 
+                key={i} 
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors
+                  ${variant === 'returnee'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
+                    : 'bg-blue-50 text-blue-600 border-blue-100/50'}`}
+              >
+                {skill}
+              </span>
+            ))}
+            {job.skills.length > 4 && (
+              <span className="text-[10px] font-bold text-slate-400 px-1 py-0.5">
+                +{job.skills.length - 4} more
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
@@ -139,42 +168,38 @@ export default function App() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (activeTab === 'returnee') fetchReturneeJobs()
-    else if (activeTab === 'job recommendation' && !query) setResults([])
+    if (activeTab === 'returnee' || (activeTab === 'job recommendation' && query)) {
+      handleSearch()
+    } else if (activeTab === 'job recommendation' && !query) {
+      setResults([])
+    }
   }, [activeTab, location])
 
   const handleSearch = async (e) => {
-    e.preventDefault()
-    if (!query.trim()) return
+    if (e) e.preventDefault()
+    
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('http://localhost:8000/recommend', {
+      const isReturnee = activeTab === 'returnee'
+      const endpoint = isReturnee ? 'http://localhost:8000/returnee' : 'http://localhost:8000/recommend'
+      
+      const payload = { 
+        query: query.trim(), 
+        user_location: location, 
+        top_n: isReturnee ? 12 : 9, 
+        model_type: modelType 
+      }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, user_location: location, top_n: 9, model_type: modelType }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error()
       setResults(await res.json())
     } catch {
       setError('Connection failed. Please ensure the backend is running.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchReturneeJobs = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('http://localhost:8000/returnee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_location: location, top_n: 12 }),
-      })
-      setResults(await res.json())
-    } catch {
-      setError('Failed to fetch returnee jobs.')
     } finally {
       setLoading(false)
     }
@@ -301,53 +326,54 @@ export default function App() {
 
         <main className="max-w-5xl mx-auto w-full px-8 py-8 flex-grow">
 
+          {/* ── SHARED SEARCH BAR ── */}
+          {(activeTab === 'job recommendation' || activeTab === 'returnee') && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm shadow-slate-100 mb-8">
+              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-blue-200 focus-within:bg-white transition-all">
+                  <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder={activeTab === 'returnee' ? "Search entry-level pathways..." : "Skills, role, or job type..."}
+                    className="bg-transparent w-full text-sm text-slate-800 font-medium placeholder-slate-400 outline-none"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <select
+                    className="bg-slate-50 border border-slate-200 text-slate-600 font-semibold text-xs rounded-xl px-3 outline-none cursor-pointer"
+                    value={modelType}
+                    onChange={e => setModelType(e.target.value)}
+                  >
+                    {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="text-white text-sm font-bold px-7 py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                    style={{ backgroundColor: activeTab === 'returnee' ? '#10b981' : '#1d4ed8' }}
+                  >
+                    {loading ? 'Matching…' : 'Match'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-600 text-sm font-semibold p-4 rounded-xl text-center mb-8">
+              {error}
+            </div>
+          )}
+
           {/* ── FIND JOBS TAB ── */}
           {activeTab === 'job recommendation' && (
             <div className="space-y-8">
-
-              {/* Search bar */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm shadow-slate-100">
-                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
-                  <div className="flex-1 flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-blue-200 focus-within:bg-white transition-all">
-                    <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="Skills, role, or job type..."
-                      className="bg-transparent w-full text-sm text-slate-800 font-medium placeholder-slate-400 outline-none"
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <select
-                      className="bg-slate-50 border border-slate-200 text-slate-600 font-semibold text-xs rounded-xl px-3 outline-none cursor-pointer"
-                      value={modelType}
-                      onChange={e => setModelType(e.target.value)}
-                    >
-                      {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="text-white text-sm font-bold px-7 py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                      style={{ backgroundColor: '#1d4ed8' }}
-                    >
-                      {loading ? 'Matching…' : 'Match'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-100 text-red-600 text-sm font-semibold p-4 rounded-xl text-center">
-                  {error}
-                </div>
-              )}
-
               {/* Results */}
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

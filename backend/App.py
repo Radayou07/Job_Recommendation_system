@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 # --- Configuration & Model Loading ---
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "data.csv")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "data.csv")
 MODEL_NAME = "BAAI/bge-base-en-v1.5"
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -111,17 +111,20 @@ class RecommendationRequest(BaseModel):
     model_type: str = "hybrid"
 
 class ReturneeRequest(BaseModel):
+    query: str = ""
     user_location: str = "Phnom Penh"
     top_n: int = 10
+    model_type: str = "hybrid"
 
 class JobRecommendation(BaseModel):
     job_title: str
     company_name: str
     job_location: str
-    distance: str
+    job_type: str = "Unknown"
     score: float
     experience: str = ""
     education: str = ""
+    skills: list[str] = []
 
 # --- Routes ---
 @app.get("/")
@@ -168,17 +171,17 @@ async def recommend(request: RecommendationRequest):
     recommendations = []
     for idx in top_idx:
         job = df.iloc[idx]
-        p1, p2 = COORDS_MAP.get(request.user_location), COORDS_MAP.get(job['job_location'])
-        dist_str = "Remote" if job['job_location'] == "Remote" else (f"{haversine_distance(p1[0], p1[1], p2[0], p2[1]):.1f}km" if p1 and p2 else "Unknown")
+        skills_list = [s.strip() for s in str(job['skills_required']).split(';') if s.strip()]
             
         recommendations.append(JobRecommendation(
             job_title=job['job_title'],
             company_name=job['company_name'],
-            job_location=job['job_location'],
-            distance=dist_str,
+            job_location=str(job['job_location']),
+            job_type=str(job['job_type']),
             score=float(final_scores[idx]),
             experience=str(job['experience_required']),
-            education=str(job['education_required'])
+            education=str(job['education_required']),
+            skills=skills_list
         ))
     return recommendations
 
@@ -188,33 +191,90 @@ async def returnee_jobs(request: ReturneeRequest):
         raise HTTPException(status_code=503, detail="Models are still loading")
     
     try:
-        df_copy = df.copy()
-        df_copy['exp_num'] = pd.to_numeric(df_copy['experience_required'], errors='coerce').fillna(0)
-        mask = (df_copy['exp_num'] <= 1) & (df_copy['education_required'].str.lower().isin(['none', 'high school']))
-        returnee_df = df_copy[mask].copy()
+        exp_num = pd.to_numeric(df['experience_required'], errors='coerce').fillna(0)
+        # Criteria: exp <= 1 AND (High School OR None OR Empty)
+        mask = (exp_num <= 1) & (df['education_required'].str.lower().isin(['none', 'high school', '']))
     except Exception as e:
-        print(f"Filtering error: {e}")
-        return []
-    
-    if returnee_df.empty:
+        print(f"Masking error: {e}")
         return []
 
-    loc_weights = np.array([get_geometry_weight(request.user_location, loc) for loc in returnee_df['job_location']])
-    returnee_df['loc_score'] = loc_weights
-    top_df = returnee_df.sort_values('loc_score', ascending=False).head(request.top_n)
+    # If query is empty, just return nearest returnee jobs
+    if not request.query.strip():
+        returnee_df = df[mask].copy()
+        if returnee_df.empty:
+            return []
+            
+        loc_weights = np.array([get_geometry_weight(request.user_location, loc) for loc in returnee_df['job_location']])
+        returnee_df['loc_score'] = loc_weights
+        top_df = returnee_df.sort_values('loc_score', ascending=False).head(request.top_n)
+        
+        results = []
+        for _, job in top_df.iterrows():
+            skills_list = [s.strip() for s in str(job['skills_required']).split(';') if s.strip()]
+            results.append(JobRecommendation(
+                job_title=job['job_title'],
+                company_name=job['company_name'],
+                job_location=str(job['job_location']),
+                job_type=str(job['job_type']),
+                score=float(job['loc_score']),
+                experience=str(job['experience_required']),
+                education=str(job['education_required']),
+                skills=skills_list
+            ))
+        return results
+
+    # If query is provided, use recommendation logic with returnee mask
+    m_type = request.model_type.lower()
+    
+    # 1. Similarity Scores
+    q_bow = bow_vectorizer.transform([request.query])
+    sims_bow = cosine_similarity(q_bow, bow_matrix).flatten()
+    
+    q_tfidf = tfidf_vectorizer.transform([request.query])
+    sims_tfidf = cosine_similarity(q_tfidf, tfidf_matrix).flatten()
+    
+    instruction = "Represent this sentence for searching relevant passages: "
+    q_sbert = sbert_model.encode([instruction + request.query], show_progress_bar=False)
+    sims_sbert = cosine_similarity(q_sbert, sbert_embeddings).flatten()
+    
+    # 2. Decide Base Score
+    if m_type == "bow":
+        base_scores = sims_bow
+    elif m_type == "tfidf":
+        base_scores = sims_tfidf
+    elif m_type == "sbert":
+        base_scores = sims_sbert
+    else: # hybrid
+        base_scores = (0.3 * sims_tfidf) + (0.7 * sims_sbert)
+    
+    # 3. Apply Geometry-Correct Penalty
+    loc_weights = np.array([get_geometry_weight(request.user_location, loc) for loc in df['job_location']])
+    final_scores = base_scores * loc_weights
+    
+    # 4. Filter by Returnee Mask
+    # Set non-returnee scores to a very low value so they don't show up in Top N
+    masked_scores = np.where(mask, final_scores, -1.0)
+    
+    # 5. Get Top N results
+    top_idx = masked_scores.argsort()[-request.top_n:][::-1]
     
     results = []
-    for _, job in top_df.iterrows():
-        p1, p2 = COORDS_MAP.get(request.user_location), COORDS_MAP.get(job['job_location'])
-        dist_str = "Remote" if job['job_location'] == "Remote" else (f"{haversine_distance(p1[0], p1[1], p2[0], p2[1]):.1f}km" if p1 and p2 else "Unknown")
+    for idx in top_idx:
+        if masked_scores[idx] < 0:
+            continue
+            
+        job = df.iloc[idx]
+        skills_list = [s.strip() for s in str(job['skills_required']).split(';') if s.strip()]
+            
         results.append(JobRecommendation(
             job_title=job['job_title'],
             company_name=job['company_name'],
-            job_location=job['job_location'],
-            distance=dist_str,
-            score=float(job['loc_score']),
+            job_location=str(job['job_location']),
+            job_type=str(job['job_type']),
+            score=float(masked_scores[idx]),
             experience=str(job['experience_required']),
-            education=str(job['education_required'])
+            education=str(job['education_required']),
+            skills=skills_list
         ))
     return results
 
