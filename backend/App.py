@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from collections import Counter
 import pandas as pd
 import numpy as np
 import torch
@@ -52,7 +53,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 def get_geometry_weight(user_loc, job_loc, scale=150):
-    if job_loc == "Remote" or user_loc == job_loc:
+    if user_loc == "All" or job_loc == "Remote" or user_loc == job_loc:
         return 1.0
     p1, p2 = COORDS_MAP.get(user_loc), COORDS_MAP.get(job_loc)
     if not p1 or not p2:
@@ -192,8 +193,13 @@ async def returnee_jobs(request: ReturneeRequest):
     
     try:
         exp_num = pd.to_numeric(df['experience_required'], errors='coerce').fillna(0)
-        # Criteria: exp <= 1 AND (High School OR None OR Empty)
-        mask = (exp_num <= 1) & (df['education_required'].str.lower().isin(['none', 'high school', '']))
+        # Revised Criteria: exp <= 1 AND (High School or below)
+        # Mapping common education strings that are "High School or below"
+        edu_allowed = ['none', 'high school', 'secondary school', 'primary school', 'vocation', '']
+        mask = (
+            (exp_num <= 1) & 
+            (df['education_required'].str.lower().isin(edu_allowed))
+        )
     except Exception as e:
         print(f"Masking error: {e}")
         return []
@@ -277,6 +283,73 @@ async def returnee_jobs(request: ReturneeRequest):
             skills=skills_list
         ))
     return results
+
+@app.get("/dashboard-stats")
+async def get_dashboard_stats(location: str = "All"):
+    if df is None:
+        raise HTTPException(status_code=503, detail="Data is still loading")
+    
+    # Filter by location if not "All"
+    display_df = df
+    if location != "All":
+        display_df = df[df['job_location'] == location]
+    
+    if display_df.empty:
+        return {
+            "total_jobs": 0,
+            "jobs_by_province": [],
+            "jobs_by_category": [],
+            "top_skills": [],
+            "avg_salary_by_category": [],
+            "experience_distribution": []
+        }
+
+    # 1. Total Jobs
+    total_jobs = len(display_df)
+    
+    # 2. Jobs by Location (Top 10)
+    location_counts = display_df['job_location'].value_counts().head(10).to_dict()
+    jobs_by_location = [{"name": k, "value": int(v)} for k, v in location_counts.items()]
+    
+    # 3. Jobs by Category (Top 10)
+    category_counts = display_df['category'].value_counts().head(10).to_dict()
+    jobs_by_category = [{"name": k, "value": int(v)} for k, v in category_counts.items()]
+    
+    # 4. Job Type Distribution
+    type_counts = display_df['job_type'].value_counts().head(10).to_dict()
+    job_type_distribution = [{"name": k, "value": int(v)} for k, v in type_counts.items() if k and k.lower() != 'nan']
+    
+    # 5. Education Required
+    edu_counts = display_df['education_required'].value_counts().head(10).to_dict()
+    education_distribution = [{"name": k if k else "Not Specified", "value": int(v)} for k, v in edu_counts.items()]
+
+    # 6. Avg Salary by Industry (Category)
+    temp_df = display_df.copy()
+    temp_df['salary_avg'] = pd.to_numeric(temp_df['salary_avg'], errors='coerce')
+    salary_df = temp_df[temp_df['salary_avg'] > 0]
+    
+    if not salary_df.empty:
+        avg_salaries = salary_df.groupby('category')['salary_avg'].mean().sort_values(ascending=False).head(10).to_dict()
+        avg_salary_by_industry = [{"name": k, "value": round(float(v), 2)} for k, v in avg_salaries.items()]
+        
+        # 7. Salary Distribution (Bins)
+        sal_bins = [0, 300, 600, 1000, 2000, 5000, 100000]
+        sal_labels = ['<$300', '$300-600', '$600-1k', '$1k-2k', '$2k-5k', '$5k+']
+        sal_dist = pd.cut(salary_df['salary_avg'], bins=sal_bins, labels=sal_labels).value_counts().sort_index().to_dict()
+        salary_distribution = [{"name": k, "value": int(v)} for k, v in sal_dist.items()]
+    else:
+        avg_salary_by_industry = []
+        salary_distribution = []
+
+    return {
+        "total_jobs": total_jobs,
+        "jobs_by_location": jobs_by_location,
+        "jobs_by_category": jobs_by_category,
+        "job_type_distribution": job_type_distribution,
+        "education_distribution": education_distribution,
+        "salary_distribution": salary_distribution,
+        "avg_salary_by_industry": avg_salary_by_industry
+    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+  PieChart, Pie, Cell 
+} from 'recharts'
 
 const PROVINCES = [
-  "Phnom Penh", "Kandal", "Siem Reap", "Sihanoukville", "Battambang",
+  "All", "Phnom Penh", "Kandal", "Siem Reap", "Sihanoukville", "Battambang",
   "Kampong Cham", "Kampot", "Kratié", "Mondulkiri", "Preah Vihear",
   "Ratanakiri", "Takeo", "Remote"
 ]
@@ -44,47 +48,37 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  {
-    id: 'interacy job',
-    label: 'Connect',
-    icon: (
-      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-      </svg>
-    ),
-  },
 ]
 
 function JobCard({ job, variant = 'recommend' }) {
+  const isReturnee = variant === 'returnee'
+  
   return (
     <div className={`
-      bg-white flex flex-col h-full rounded-2xl border
-      transition-all duration-300 group overflow-hidden
-      ${variant === 'returnee'
-        ? 'border-slate-200 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10'
-        : 'border-slate-200 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-500/10'}
+      bg-white flex flex-col h-full rounded-[24px] border border-blue-100/30
+      transition-all duration-500 group overflow-hidden
+      hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1.5
     `}>
       {/* Top accent strip */}
-      <div className={`h-1 w-full ${variant === 'returnee' ? 'bg-emerald-400' : 'bg-blue-500'}`} />
+      <div className={`h-1.5 w-full ${isReturnee ? 'bg-blue-300' : 'bg-blue-600'}`} />
 
-      <div className="p-6 flex flex-col flex-grow">
+      <div className="p-7 flex flex-col flex-grow">
         {/* Header row */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-5">
           <div className="flex flex-col gap-2">
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full tracking-widest uppercase border ${
-              variant === 'returnee' 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                : 'bg-blue-50 text-blue-600 border-blue-100'
+            <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold px-3 py-1.5 rounded-xl tracking-widest uppercase border ${
+              isReturnee 
+                ? 'bg-blue-50/50 text-blue-600 border-blue-100/50' 
+                : 'bg-blue-50/50 text-blue-700 border-blue-100/50'
             }`}>
-              {variant === 'returnee' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />}
+              <span className={`w-1.5 h-1.5 rounded-full ${isReturnee ? 'bg-blue-400' : 'bg-blue-500'} inline-block`} />
               {Math.round(job.score * 100)}% Match
             </span>
           </div>
           
           <div className="flex flex-col items-end gap-1.5">
             {job.job_type && job.job_type !== 'nan' && (
-              <span className="bg-slate-50 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-md border border-slate-100 uppercase tracking-wider">
+              <span className="bg-slate-50 text-slate-500 text-[9px] font-black px-2.5 py-1 rounded-lg border border-slate-100 uppercase tracking-widest">
                 {job.job_type}
               </span>
             )}
@@ -92,48 +86,39 @@ function JobCard({ job, variant = 'recommend' }) {
         </div>
 
         {/* Title & Company */}
-        <h3 className={`text-base font-bold leading-snug mb-1 transition-colors
-          ${variant === 'returnee'
-            ? 'text-slate-800 group-hover:text-emerald-700'
-            : 'text-slate-800 group-hover:text-blue-700'}`}>
+        <h3 className={`text-[17px] font-black leading-tight mb-1.5 transition-colors duration-300
+          text-slate-800 group-hover:text-blue-600`}>
           {job.job_title}
         </h3>
-        <p className="text-sm text-slate-500 font-medium mb-4">{job.company_name}</p>
+        <p className="text-sm text-slate-400 font-bold mb-5 tracking-tight">{job.company_name}</p>
 
         {/* Skills Tags */}
         {job.skills && job.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-5">
+          <div className="flex flex-wrap gap-2 mb-6">
             {job.skills.slice(0, 4).map((skill, i) => (
               <span 
                 key={i} 
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors
-                  ${variant === 'returnee'
-                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50'
-                    : 'bg-blue-50 text-blue-600 border-blue-100/50'}`}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-50/30 text-blue-500 border border-blue-100/20"
               >
                 {skill}
               </span>
             ))}
-            {job.skills.length > 4 && (
-              <span className="text-[10px] font-bold text-slate-400 px-1 py-0.5">
-                +{job.skills.length - 4} more
-              </span>
-            )}
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex gap-1.5">
-            <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-wider">
+        <div className="mt-auto pt-5 border-t border-slate-50 flex items-center justify-between">
+          <div className="flex gap-2">
+            <span className="text-[10px] font-black bg-slate-100/50 text-slate-400 px-2.5 py-1 rounded-lg uppercase tracking-wider">
               {job.experience}y exp
             </span>
-            <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-wider">
-              {job.education}
+            <span className="text-[10px] font-black bg-slate-100/50 text-slate-400 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+              {job.education.toLowerCase() === 'none' ? 'General Ed' : job.education}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-black uppercase tracking-tighter">
+            <svg className="w-3.5 h-3.5 text-blue-300" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
             </svg>
             {job.job_location}
@@ -158,10 +143,284 @@ function EmptyState({ message }) {
   )
 }
 
+function DashboardView({ location }) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // High-contrast diverse palette for maximum distinction
+  const COLORS = [
+    '#3b82f6', // Blue
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#ef4444', // Red
+    '#8b5cf6', // Violet
+    '#ec4899', // Pink
+    '#06b6d4', // Cyan
+    '#f97316', // Orange
+    '#6366f1', // Indigo
+    '#84cc16'  // Lime
+  ]
+
+  useEffect(() => {
+    fetchStats()
+  }, [location])
+
+  const fetchStats = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`http://localhost:8000/dashboard-stats?location=${location}`)
+      if (!res.ok) throw new Error()
+      setStats(await res.json())
+    } catch {
+      setError('Failed to load dashboard data.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+      {[...Array(6)].map((_, i) => <div key={i} className="h-64 bg-white/50 rounded-3xl" />)}
+    </div>
+  )
+
+  if (error) return <div className="text-center py-20 text-blue-500 font-bold bg-white/50 rounded-3xl border border-blue-100">{error}</div>
+  if (!stats) return null
+
+  return (
+    <div className="space-y-8 pb-12">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {[
+          { 
+            label: 'Total Postings', 
+            value: stats.total_jobs, 
+            icon: (
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            )
+          },
+          { 
+            label: 'Top Industry', 
+            value: stats.jobs_by_category[0]?.name, 
+            icon: (
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            )
+          },
+          { 
+            label: 'Top Location', 
+            value: stats.jobs_by_location[0]?.name, 
+            icon: (
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            )
+          }
+        ].map((kpi, i) => (
+          <div key={i} className="bg-white/70 backdrop-blur-sm p-7 rounded-[28px] border border-blue-100/50 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                {kpi.icon}
+              </div>
+              <p className="text-[11px] font-black text-blue-400 uppercase tracking-[0.15em]">{kpi.label}</p>
+            </div>
+            <h4 className="text-2xl font-black text-slate-800 truncate">{kpi.value}</h4>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Jobs by Category */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Industry Demand</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.jobs_by_category} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" opacity={0.5} />
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={140} 
+                  tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                />
+                <Tooltip 
+                  cursor={{fill: '#f1f5f9'}}
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
+                  {stats.jobs_by_category.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Jobs by Location */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Regional Distribution</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={stats.jobs_by_location}
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={8}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {stats.jobs_by_location.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Legend iconType="circle" wrapperStyle={{fontSize: '10px', fontWeight: '800', paddingTop: '20px'}} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Job Type Distribution */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Job Type Split</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.job_type_distribution}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{fill: '#f1f5f9'}}
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                  {stats.job_type_distribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Salary Distribution */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Salary Brackets</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.salary_distribution}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{fill: '#f1f5f9'}}
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                  {stats.salary_distribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[(index + 4) % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Education Required */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Education Requirements</h3>
+          <div className="h-[300px] w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={stats.education_distribution}
+                  innerRadius={60}
+                  outerRadius={95}
+                  paddingAngle={4}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {stats.education_distribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Legend 
+                  layout="vertical" 
+                  verticalAlign="middle" 
+                  align="right"
+                  iconType="circle"
+                  formatter={(value) => (
+                    <span className="text-[10px] font-black text-slate-500 uppercase ml-1">{value}</span>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Avg Salary by Industry */}
+        <div className="bg-white/70 backdrop-blur-sm p-8 rounded-[32px] border border-blue-100/50 shadow-sm">
+          <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Avg Salary by Industry</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.avg_salary_by_industry} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" opacity={0.5} />
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={140} 
+                  tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                />
+                <Tooltip 
+                  cursor={{fill: '#f1f5f9'}}
+                  formatter={(value) => [`$${value}`, 'Avg Salary']}
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
+                />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
+                  {stats.avg_salary_by_industry.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 export default function App() {
-  const [activeTab, setActiveTab] = useState('job recommendation')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [query, setQuery] = useState('')
-  const [location, setLocation] = useState('Phnom Penh')
+  const [location, setLocation] = useState('All')
   const [modelType, setModelType] = useState('hybrid')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -206,63 +465,58 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white font-sans">
+    <div className="flex min-h-screen bg-[#f0f7ff] font-sans">
 
-      {/* ── SIDEBAR ── deep dark blue */}
+      {/* ── SIDEBAR ── light blue tint */}
       <aside
-        className="w-64 flex-shrink-0 flex flex-col sticky top-0 h-screen"
-        style={{ backgroundColor: '#0b1f45' }}
+        className="w-66 flex-shrink-0 flex flex-col sticky top-0 h-screen bg-white/80 backdrop-blur-xl border-r border-blue-100/50 shadow-sm"
       >
         {/* Logo */}
-        <div className="px-6 pt-8 pb-6">
+        <div className="px-7 pt-9 pb-8">
           <div className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black text-white"
-              style={{ backgroundColor: '#2563eb' }}
+              className="w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-lg shadow-blue-500/20"
+              style={{ backgroundColor: '#3b82f6' }}
             >
               R
             </div>
-            <span className="text-white text-lg font-black tracking-tight">
-              Rec<span style={{ color: '#60a5fa' }}>AI</span>
+            <span className="text-slate-800 text-xl font-black tracking-tight">
+              Rec<span className="text-blue-500">AI</span>
             </span>
           </div>
         </div>
 
         {/* Section label */}
-        <div className="px-6 mb-2">
-          <span className="text-[9px] font-bold tracking-[0.18em] uppercase" style={{ color: '#4a6fa5' }}>
+        <div className="px-7 mb-3">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-400/80">
             Navigation
           </span>
         </div>
 
         {/* Nav links */}
-        <nav className="px-3 space-y-0.5 flex-grow">
+        <nav className="px-4 space-y-1 flex-grow">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group"
+                className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all duration-300 group relative"
                 style={{
-                  backgroundColor: active ? '#1e3a6e' : 'transparent',
-                  color: active ? '#ffffff' : '#7ea3cc',
+                  backgroundColor: active ? '#ffffff' : 'transparent',
+                  color: active ? '#2563eb' : '#64748b',
+                  boxShadow: active ? '0 4px 12px -2px rgba(59, 130, 246, 0.08)' : 'none',
+                  border: active ? '1px solid rgba(59, 130, 246, 0.1)' : '1px solid transparent'
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = '#142d55' }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.5)' }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
-                {/* Active indicator bar */}
-                <span
-                  className="absolute left-0 w-0.5 h-7 rounded-r transition-opacity duration-200"
-                  style={{
-                    backgroundColor: '#3b82f6',
-                    opacity: active ? 1 : 0,
-                  }}
-                />
-                <span style={{ color: active ? '#60a5fa' : '#4a6fa5' }}>{item.icon}</span>
-                <span className="text-sm font-semibold">{item.label}</span>
+                <span className={`transition-colors duration-300 ${active ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>
+                  {item.icon}
+                </span>
+                <span className="text-sm font-bold tracking-tight">{item.label}</span>
                 {active && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
                 )}
               </button>
             )
@@ -270,51 +524,47 @@ export default function App() {
         </nav>
 
         {/* Model status pill */}
-        <div className="px-4 pb-8">
+        <div className="px-5 pb-10">
           <div
-            className="rounded-xl px-4 py-3"
-            style={{ backgroundColor: '#0d2554', border: '1px solid #1a3a6e' }}
+            className="rounded-2xl px-5 py-4 bg-gradient-to-br from-blue-50 to-white border border-blue-100/50 shadow-sm"
           >
-            <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: '#4a6fa5' }}>
-              Active Model
+            <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2 text-blue-400">
+              Active Engine
             </p>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold" style={{ color: '#93c5fd' }}>
+              <span className="text-xs font-extrabold text-slate-700">
                 {MODELS.find(m => m.id === modelType)?.name}
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold" style={{ color: '#34d399' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                Live
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                Active
               </span>
             </div>
-            <p className="text-[10px] mt-0.5" style={{ color: '#4a6fa5' }}>
-              {MODELS.find(m => m.id === modelType)?.desc}
-            </p>
           </div>
         </div>
       </aside>
 
-      {/* ── MAIN ── pure white */}
-      <div className="flex-1 flex flex-col min-h-screen bg-white">
+      {/* ── MAIN ── light blue bg */}
+      <div className="flex-1 flex flex-col min-h-screen">
 
-        {/* Sticky header */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-8 py-4">
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
+        {/* Header */}
+        <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-md border-b border-blue-100/30 px-10 py-5">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-black text-slate-800 capitalize tracking-tight">{activeTab}</h1>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">
-                {activeTab === 'returnee'
-                  ? 'Entry-level pathways for returning workers'
-                  : 'AI-powered job matching engine'}
+              <h1 className="text-xl font-black text-slate-800 capitalize tracking-tight">{activeTab}</h1>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 opacity-70">
+                {activeTab === 'dashboard' ? 'Market Intelligence' : 
+                 activeTab === 'returnee' ? 'Entry-Level Pathways' : 
+                 'AI Job Matching'}
               </p>
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-2 bg-white border border-blue-100/50 shadow-sm rounded-2xl px-4 py-2.5">
+              <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
               <select
-                className="bg-transparent border-none text-slate-700 font-semibold text-xs outline-none cursor-pointer"
+                className="bg-transparent border-none text-slate-700 font-bold text-xs outline-none cursor-pointer"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               >
@@ -324,7 +574,10 @@ export default function App() {
           </div>
         </header>
 
-        <main className="max-w-5xl mx-auto w-full px-8 py-8 flex-grow">
+        <main className="max-w-6xl mx-auto w-full px-10 py-10 flex-grow">
+
+          {/* ── DASHBOARD TAB ── */}
+          {activeTab === 'dashboard' && <DashboardView location={location} />}
 
           {/* ── SHARED SEARCH BAR ── */}
           {(activeTab === 'job recommendation' || activeTab === 'returnee') && (
@@ -356,7 +609,7 @@ export default function App() {
                     type="submit"
                     disabled={loading}
                     className="text-white text-sm font-bold px-7 py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                    style={{ backgroundColor: activeTab === 'returnee' ? '#10b981' : '#1d4ed8' }}
+                    style={{ backgroundColor: activeTab === 'returnee' ? '#2563eb' : '#1d4ed8' }}
                   >
                     {loading ? 'Matching…' : 'Match'}
                   </button>
@@ -404,7 +657,7 @@ export default function App() {
                   <h2 className="text-xl font-black text-slate-800">Available Pathways</h2>
                   <p className="text-xs text-slate-400 font-medium mt-1">Entry-level · High School education</p>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
                   {results.length} pathways
                 </span>
               </div>
@@ -424,16 +677,19 @@ export default function App() {
           )}
 
           {/* ── OTHER TABS ── */}
-          {activeTab !== 'job recommendation' && activeTab !== 'returnee' && (
+          {activeTab !== 'job recommendation' && activeTab !== 'returnee' && activeTab !== 'dashboard' && (
             <div className="flex flex-col items-center justify-center h-full py-40 text-center">
-              <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl mb-6">
-                🚧
+              <div className="w-24 h-24 rounded-3xl bg-white border border-blue-100/50 shadow-sm flex items-center justify-center mb-8">
+                <svg className="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </div>
               <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2 capitalize">
                 {activeTab}
               </h2>
-              <p className="text-xs text-slate-400 font-bold tracking-[0.2em] uppercase">
-                In development · Q3 2026
+              <p className="text-xs text-blue-400 font-bold tracking-[0.2em] uppercase">
+                Engineering in progress · Q3 2026
               </p>
             </div>
           )}
