@@ -21,7 +21,7 @@ python App.py # run App.py
 ```
 
 >[!note]
-For Those who use Nvidia product with CUDA support install this instead.
+For Nvidia product with CUDA support install this instead for faster train data.
 
 ```bash
 pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
