@@ -11,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import os
 
-app = FastAPI(title="Job Recommendation API")
+app = FastAPI(title="littlehelp API")
 
 # Enable CORS for frontend integration
 app.add_middleware(
@@ -109,13 +109,13 @@ class RecommendationRequest(BaseModel):
     query: str
     user_location: str = "Phnom Penh"
     top_n: int = 5
-    model_type: str = "hybrid"
+    model_type: str = "sbert"
 
 class ReturneeRequest(BaseModel):
     query: str = ""
     user_location: str = "Phnom Penh"
     top_n: int = 10
-    model_type: str = "hybrid"
+    model_type: str = "sbert"
 
 class JobRecommendation(BaseModel):
     job_title: str
@@ -130,7 +130,7 @@ class JobRecommendation(BaseModel):
 # --- Routes ---
 @app.get("/")
 def read_root():
-    return {"message": "Job Recommendation API is running"}
+    return {"message": "littlehelp API is running"}
 
 @app.post("/recommend", response_model=list[JobRecommendation])
 async def recommend(request: RecommendationRequest):
@@ -155,12 +155,10 @@ async def recommend(request: RecommendationRequest):
     # 4. Decide Base Score
     if m_type == "bow":
         base_scores = sims_bow
-    elif m_type == "tfidf":
-        base_scores = sims_tfidf
     elif m_type == "sbert":
         base_scores = sims_sbert
-    else: # hybrid
-        base_scores = (0.3 * sims_tfidf) + (0.7 * sims_sbert)
+    else: # Default to TF-IDF
+        base_scores = sims_tfidf
     
     # 5. Apply Geometry-Correct Penalty
     loc_weights = np.array([get_geometry_weight(request.user_location, loc) for loc in df['job_location']])
@@ -193,8 +191,6 @@ async def returnee_jobs(request: ReturneeRequest):
     
     try:
         exp_num = pd.to_numeric(df['experience_required'], errors='coerce').fillna(0)
-        # Revised Criteria: exp <= 1 AND (High School or below)
-        # Mapping common education strings that are "High School or below"
         edu_allowed = ['none', 'high school', 'secondary school', 'primary school', 'vocation', '']
         mask = (
             (exp_num <= 1) & 
@@ -204,7 +200,6 @@ async def returnee_jobs(request: ReturneeRequest):
         print(f"Masking error: {e}")
         return []
 
-    # If query is empty, just return nearest returnee jobs
     if not request.query.strip():
         returnee_df = df[mask].copy()
         if returnee_df.empty:
@@ -229,7 +224,6 @@ async def returnee_jobs(request: ReturneeRequest):
             ))
         return results
 
-    # If query is provided, use recommendation logic with returnee mask
     m_type = request.model_type.lower()
     
     # 1. Similarity Scores
@@ -246,19 +240,16 @@ async def returnee_jobs(request: ReturneeRequest):
     # 2. Decide Base Score
     if m_type == "bow":
         base_scores = sims_bow
-    elif m_type == "tfidf":
-        base_scores = sims_tfidf
     elif m_type == "sbert":
         base_scores = sims_sbert
-    else: # hybrid
-        base_scores = (0.3 * sims_tfidf) + (0.7 * sims_sbert)
+    else: # Default to TF-IDF
+        base_scores = sims_tfidf
     
     # 3. Apply Geometry-Correct Penalty
     loc_weights = np.array([get_geometry_weight(request.user_location, loc) for loc in df['job_location']])
     final_scores = base_scores * loc_weights
     
     # 4. Filter by Returnee Mask
-    # Set non-returnee scores to a very low value so they don't show up in Top N
     masked_scores = np.where(mask, final_scores, -1.0)
     
     # 5. Get Top N results

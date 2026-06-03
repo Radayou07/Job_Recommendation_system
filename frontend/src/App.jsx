@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  PieChart, Pie, Cell 
+  PieChart, Pie, Cell, LabelList 
 } from 'recharts'
 
 const PROVINCES = [
@@ -11,10 +11,9 @@ const PROVINCES = [
 ]
 
 const MODELS = [
-  { id: 'hybrid', name: 'AI Hybrid', desc: 'SBERT + TF-IDF' },
-  { id: 'sbert', name: 'Semantic', desc: 'Context & Intent' },
-  { id: 'tfidf', name: 'Keywords', desc: 'Exact Matching' },
-  { id: 'bow', name: 'Frequency', desc: 'Word Count' },
+  { id: 'sbert', name: 'SBERT', desc: 'Context & Intent' },
+  { id: 'tfidf', name: 'TF-IDF', desc: 'Exact Matching' },
+  { id: 'bow', name: 'BoW', desc: 'Word Count' },
 ]
 
 const NAV_ITEMS = [
@@ -49,6 +48,74 @@ const NAV_ITEMS = [
     ),
   },
 ]
+
+function CustomSelect({ value, onChange, options, icon, className = "" }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const selectedOption = options.find(opt => 
+    typeof opt === 'string' ? opt === value : opt.id === value
+  )
+  const label = typeof selectedOption === 'string' ? selectedOption : selectedOption?.name
+  
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 bg-white border border-blue-100/50 shadow-sm rounded-xl px-4 py-3 transition-all hover:border-blue-200 active:scale-95 focus:outline-none focus:ring-0"
+      >
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-blue-400">{icon}</span>}
+          <span className="text-slate-700 font-bold text-xs truncate">{label}</span>
+        </div>
+        <svg className={`w-3 h-3 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <div className={`
+        absolute right-0 mt-2 w-48 bg-white border border-blue-100/50 shadow-xl rounded-2xl overflow-hidden z-50
+        transition-all duration-200 origin-top-right transform
+        ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}
+      `}>
+        <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
+          {options.map((opt) => {
+            const id = typeof opt === 'string' ? opt : opt.id
+            const name = typeof opt === 'string' ? opt : opt.name
+            const active = id === value
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  onChange(id)
+                  setIsOpen(false)
+                }}
+                className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors focus:outline-none focus:ring-0
+                  ${active ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}
+                `}
+              >
+                {name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function JobCard({ job, variant = 'recommend' }) {
   const isReturnee = variant === 'returnee'
@@ -240,7 +307,7 @@ function DashboardView({ location }) {
           <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Industry Demand</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.jobs_by_category} layout="vertical">
+              <BarChart data={stats.jobs_by_category} layout="vertical" margin={{ right: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" opacity={0.5} />
                 <XAxis type="number" hide />
                 <YAxis 
@@ -255,10 +322,11 @@ function DashboardView({ location }) {
                   cursor={{fill: '#f1f5f9'}}
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
                 />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16} animationDuration={300} animationBegin={0}>
                   {stats.jobs_by_category.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="value" position="right" style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -278,6 +346,9 @@ function DashboardView({ location }) {
                   paddingAngle={8}
                   dataKey="value"
                   stroke="none"
+                  animationDuration={300}
+                  animationBegin={0}
+                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                 >
                   {stats.jobs_by_location.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -297,7 +368,7 @@ function DashboardView({ location }) {
           <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Job Type Split</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.job_type_distribution}>
+              <BarChart data={stats.job_type_distribution} margin={{ top: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                 <XAxis 
                   dataKey="name" 
@@ -310,10 +381,11 @@ function DashboardView({ location }) {
                   cursor={{fill: '#f1f5f9'}}
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
                 />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40} animationDuration={300} animationBegin={0}>
                   {stats.job_type_distribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="value" position="top" style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -325,7 +397,7 @@ function DashboardView({ location }) {
           <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Salary Brackets</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.salary_distribution}>
+              <BarChart data={stats.salary_distribution} margin={{ top: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                 <XAxis 
                   dataKey="name" 
@@ -338,10 +410,11 @@ function DashboardView({ location }) {
                   cursor={{fill: '#f1f5f9'}}
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
                 />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40} animationDuration={300} animationBegin={0}>
                   {stats.salary_distribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[(index + 4) % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="value" position="top" style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -361,6 +434,9 @@ function DashboardView({ location }) {
                   paddingAngle={4}
                   dataKey="value"
                   stroke="none"
+                  animationDuration={300}
+                  animationBegin={0}
+                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                 >
                   {stats.education_distribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />
@@ -388,7 +464,7 @@ function DashboardView({ location }) {
           <h3 className="text-xs font-black text-blue-500 mb-8 uppercase tracking-[0.2em]">Avg Salary by Industry</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.avg_salary_by_industry} layout="vertical">
+              <BarChart data={stats.avg_salary_by_industry} layout="vertical" margin={{ right: 50 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" opacity={0.5} />
                 <XAxis type="number" hide />
                 <YAxis 
@@ -404,10 +480,11 @@ function DashboardView({ location }) {
                   formatter={(value) => [`$${value}`, 'Avg Salary']}
                   contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)'}}
                 />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16}>
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={16} animationDuration={300} animationBegin={0}>
                   {stats.avg_salary_by_industry.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
                   ))}
+                  <LabelList dataKey="value" position="right" formatter={(v) => `$${v}`} style={{ fill: '#64748b', fontSize: '10px', fontWeight: 'bold' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -421,23 +498,25 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('All')
-  const [modelType, setModelType] = useState('hybrid')
+  const [modelType, setModelType] = useState('sbert')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [buttonLoading, setButtonLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (activeTab === 'returnee' || (activeTab === 'job recommendation' && query)) {
-      handleSearch()
+      handleSearch(null, false)
     } else if (activeTab === 'job recommendation' && !query) {
       setResults([])
     }
   }, [activeTab, location])
 
-  const handleSearch = async (e) => {
+  const handleSearch = async (e, isManual = true) => {
     if (e) e.preventDefault()
     
     setLoading(true)
+    if (isManual) setButtonLoading(true)
     setError('')
     try {
       const isReturnee = activeTab === 'returnee'
@@ -461,34 +540,29 @@ export default function App() {
       setError('Connection failed. Please ensure the backend is running.')
     } finally {
       setLoading(false)
+      setButtonLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f0f7ff] font-sans">
+    <div className="flex min-h-screen bg-[#f0f7ff]"> 
 
       {/* ── SIDEBAR ── light blue tint */}
       <aside
-        className="w-66 flex-shrink-0 flex flex-col sticky top-0 h-screen bg-white/80 backdrop-blur-xl border-r border-blue-100/50 shadow-sm"
+        className="w-64 flex-shrink-0 flex flex-col sticky top-0 h-screen bg-blue-600 rounded-r-[32px] shadow-2xl z-40"
       >
         {/* Logo */}
         <div className="px-7 pt-9 pb-8">
           <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-lg shadow-blue-500/20"
-              style={{ backgroundColor: '#3b82f6' }}
-            >
-              R
-            </div>
-            <span className="text-slate-800 text-xl font-black tracking-tight">
-              Rec<span className="text-blue-500">AI</span>
+            <span className="text-white text-xl font-black tracking-tight">
+              little<span className="text-blue-200">help</span>
             </span>
           </div>
         </div>
 
         {/* Section label */}
         <div className="px-7 mb-3">
-          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-400/80">
+          <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-100/60">
             Navigation
           </span>
         </div>
@@ -504,19 +578,18 @@ export default function App() {
                 className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all duration-300 group relative"
                 style={{
                   backgroundColor: active ? '#ffffff' : 'transparent',
-                  color: active ? '#2563eb' : '#64748b',
-                  boxShadow: active ? '0 4px 12px -2px rgba(59, 130, 246, 0.08)' : 'none',
-                  border: active ? '1px solid rgba(59, 130, 246, 0.1)' : '1px solid transparent'
+                  color: active ? '#2563eb' : '#dbeafe',
+                  boxShadow: active ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)' : 'none',
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.5)' }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)' }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
-                <span className={`transition-colors duration-300 ${active ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>
+                <span className={`transition-colors duration-300 ${active ? 'text-blue-600' : 'text-blue-200 group-hover:text-white'}`}>
                   {item.icon}
                 </span>
                 <span className="text-sm font-bold tracking-tight">{item.label}</span>
                 {active && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600 shadow-sm" />
                 )}
               </button>
             )
@@ -526,17 +599,17 @@ export default function App() {
         {/* Model status pill */}
         <div className="px-5 pb-10">
           <div
-            className="rounded-2xl px-5 py-4 bg-gradient-to-br from-blue-50 to-white border border-blue-100/50 shadow-sm"
+            className="rounded-2xl px-5 py-4 bg-blue-700/40 border border-blue-500/30 shadow-sm"
           >
-            <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2 text-blue-400">
+            <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2 text-blue-100/80">
               Active Engine
             </p>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-slate-700">
+              <span className="text-xs font-extrabold text-white">
                 {MODELS.find(m => m.id === modelType)?.name}
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-blue-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse" />
                 Active
               </span>
             </div>
@@ -548,7 +621,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-screen">
 
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-md border-b border-blue-100/30 px-10 py-5">
+        <header className="sticky top-0 z-30 bg-[#f0f7ff]/90 backdrop-blur-sm px-10 py-7">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
               <h1 className="text-xl font-black text-slate-800 capitalize tracking-tight">{activeTab}</h1>
@@ -559,26 +632,20 @@ export default function App() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 bg-white border border-blue-100/50 shadow-sm rounded-2xl px-4 py-2.5">
-              <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              <select
-                className="bg-transparent border-none text-slate-700 font-bold text-xs outline-none cursor-pointer"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              >
-                {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
+            <CustomSelect 
+              value={location} 
+              onChange={setLocation} 
+              options={PROVINCES}
+              icon={(
+                <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+              )}
+            />
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto w-full px-10 py-10 flex-grow">
-
-          {/* ── DASHBOARD TAB ── */}
-          {activeTab === 'dashboard' && <DashboardView location={location} />}
-
+        <main className="max-w-6xl mx-auto w-full px-10 pt-2 pb-10 flex-grow">
           {/* ── SHARED SEARCH BAR ── */}
           {(activeTab === 'job recommendation' || activeTab === 'returnee') && (
             <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm shadow-slate-100 mb-8">
@@ -596,103 +663,103 @@ export default function App() {
                   />
                 </div>
 
-                <div className="flex gap-2">
-                  <select
-                    className="bg-slate-50 border border-slate-200 text-slate-600 font-semibold text-xs rounded-xl px-3 outline-none cursor-pointer"
-                    value={modelType}
-                    onChange={e => setModelType(e.target.value)}
-                  >
-                    {MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+                <div className="flex items-center gap-2">
+                  <CustomSelect 
+                    value={modelType} 
+                    onChange={setModelType} 
+                    options={MODELS} 
+                    className="w-36"
+                  />
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="text-white text-sm font-bold px-7 py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                    style={{ backgroundColor: activeTab === 'returnee' ? '#2563eb' : '#1d4ed8' }}
+                    className="text-white text-sm font-bold px-7 py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-blue-500/20 hover:shadow-lg"
+                    style={{ backgroundColor: '#3b82f6' }}
                   >
-                    {loading ? 'Matching…' : 'Match'}
-                  </button>
-                </div>
+                    {buttonLoading ? 'Matching…' : 'Match'}
+                  </button>                </div>
               </form>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 text-sm font-semibold p-4 rounded-xl text-center mb-8">
+            <div className="bg-red-50 border border-red-100 text-red-600 text-sm font-semibold p-4 rounded-xl text-center mb-8 fade-slide-in">
               {error}
             </div>
           )}
 
-          {/* ── FIND JOBS TAB ── */}
-          {activeTab === 'job recommendation' && (
-            <div className="space-y-8">
-              {/* Results */}
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
-                  ))}
-                </div>
-              ) : results.length > 0 ? (
-                <>
-                  <p className="text-xs text-slate-400 font-semibold uppercase tracking-widest">
-                    {results.length} matches found
-                  </p>
+          {/* ── TAB CONTENT ── animated individually to prevent total page flickering */}
+          <div key={activeTab} className="fade-slide-in">
+            {activeTab === 'dashboard' && <DashboardView location={location} />}
+            
+            {activeTab === 'job recommendation' && (
+              <div className="space-y-8">
+                {loading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {results.map((job, i) => <JobCard key={i} job={job} variant="recommend" />)}
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />
+                    ))}
                   </div>
-                </>
-              ) : (
-                <EmptyState message="Enter a skill or role to find matches" />
-              )}
-            </div>
-          )}
-
-          {/* ── RETURNEE TAB ── */}
-          {activeTab === 'returnee' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-slate-800">Available Pathways</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-1">Entry-level · High School education</p>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
-                  {results.length} pathways
-                </span>
+                ) : results.length > 0 ? (
+                  <>
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-widest">
+                      {results.length} matches found
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {results.map((job, i) => <JobCard key={i} job={job} variant="recommend" />)}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyState message="Enter a skill or role to find matches" />
+                )}
               </div>
+            )}
 
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {[...Array(6)].map((_, i) => <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />)}
+            {activeTab === 'returnee' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800">Available Pathways</h2>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Entry-level · High School education</p>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
+                    {results.length} pathways
+                  </span>
                 </div>
-              ) : results.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {results.map((job, i) => <JobCard key={i} job={job} variant="returnee" />)}
-                </div>
-              ) : (
-                <EmptyState message={`No pathway jobs in ${location}`} />
-              )}
-            </div>
-          )}
 
-          {/* ── OTHER TABS ── */}
-          {activeTab !== 'job recommendation' && activeTab !== 'returnee' && activeTab !== 'dashboard' && (
-            <div className="flex flex-col items-center justify-center h-full py-40 text-center">
-              <div className="w-24 h-24 rounded-3xl bg-white border border-blue-100/50 shadow-sm flex items-center justify-center mb-8">
-                <svg className="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                {loading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {[...Array(6)].map((_, i) => <div key={i} className="h-48 bg-slate-100 rounded-2xl animate-pulse" />)}
+                  </div>
+                ) : results.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {results.map((job, i) => <JobCard key={i} job={job} variant="returnee" />)}
+                  </div>
+                ) : (
+                  <EmptyState message={`No pathway jobs in ${location}`} />
+                )}
               </div>
-              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2 capitalize">
-                {activeTab}
-              </h2>
-              <p className="text-xs text-blue-400 font-bold tracking-[0.2em] uppercase">
-                Engineering in progress · Q3 2026
-              </p>
-            </div>
-          )}
+            )}
+
+            {/* fallback for WIP tabs */}
+            {activeTab !== 'job recommendation' && activeTab !== 'returnee' && activeTab !== 'dashboard' && (
+              <div className="flex flex-col items-center justify-center h-full py-40 text-center">
+                <div className="w-24 h-24 rounded-3xl bg-white border border-blue-100/50 shadow-sm flex items-center justify-center mb-8">
+                  <svg className="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2 capitalize">
+                  {activeTab}
+                </h2>
+                <p className="text-xs text-blue-400 font-bold tracking-[0.2em] uppercase">
+                  Engineering in progress · Q3 2026
+                </p>
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
